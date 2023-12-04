@@ -39,7 +39,8 @@
 		MoreVertical,
 		RefreshCw,
 		Save,
-		Smartphone
+		Smartphone,
+		FileClock
 	} from 'lucide-svelte'
 	import { getContext } from 'svelte'
 	import { Pane, Splitpanes } from 'svelte-splitpanes'
@@ -81,6 +82,7 @@
 	import AppTimeline from './AppTimeline.svelte'
 	import type DiffDrawer from '$lib/components/DiffDrawer.svelte'
 	import { cloneDeep } from 'lodash'
+	import AppReportsDrawer from './AppReportsDrawer.svelte'
 
 	async function hash(message) {
 		try {
@@ -180,6 +182,9 @@
 					]
 					if (c.type === 'tablecomponent') {
 						r.push(...c.actionButtons.map((x) => ({ input: x.componentInput, id: x.id })))
+					}
+					if (c.type === 'menucomponent') {
+						r.push(...c.menuItems.map((x) => ({ input: x.componentInput, id: x.id })))
 					}
 					return r
 						.filter((x) => x.input)
@@ -318,7 +323,12 @@
 				requestBody: {
 					path: newPath,
 					typ: 'app',
-					value: $app!
+					value: {
+						value: $app,
+						path: newPath,
+						summary: $summary,
+						policy
+					}
 				}
 			})
 			savedApp = {
@@ -374,21 +384,49 @@
 		try {
 			await computeTriggerables()
 			let path = $page.params.path
+			if (savedApp.draft_only) {
+				await AppService.deleteApp({
+					workspace: $workspaceStore!,
+					path: path
+				})
+				await AppService.createApp({
+					workspace: $workspaceStore!,
+					requestBody: {
+						value: $app!,
+						summary: $summary,
+						policy,
+						path: newPath || path,
+						draft_only: true
+					}
+				})
+			}
 			await DraftService.createDraft({
 				workspace: $workspaceStore!,
 				requestBody: {
-					path: path,
+					path: savedApp.draft_only ? newPath || path : path,
 					typ: 'app',
-					value: $app!
+					value: {
+						value: $app!,
+						summary: $summary,
+						policy,
+						path: newPath || path
+					}
 				}
 			})
 
 			savedApp = {
-				...savedApp,
+				...(savedApp?.draft_only
+					? {
+							summary: $summary,
+							value: cloneDeep($app),
+							path: savedApp.draft_only ? newPath || path : path,
+							policy
+					  }
+					: savedApp),
 				draft: {
 					summary: $summary,
 					value: cloneDeep($app),
-					path,
+					path: newPath || path,
 					policy
 				}
 			}
@@ -396,6 +434,9 @@
 			sendUserToast('Draft saved')
 			localStorage.removeItem(`app-${path}`)
 			loading.saveDraft = false
+			if (newPath || path !== path) {
+				goto(`/apps/edit/${newPath || path}`)
+			}
 		} catch (e) {
 			loading.saveDraft = false
 			throw e
@@ -511,7 +552,13 @@
 				inputsDrawerOpen = true
 			}
 		},
-
+		{
+			displayName: 'Schedule Reports',
+			icon: FileClock,
+			action: () => {
+				appReportingDrawerOpen = true
+			}
+		},
 		...(savedApp
 			? [
 					{
@@ -546,6 +593,8 @@
 	}
 
 	let rightColumnSelect: 'timeline' | 'detail' = 'timeline'
+
+	let appReportingDrawerOpen = false
 </script>
 
 <svelte:window on:keydown={onKeyDown} />
@@ -1011,6 +1060,8 @@
 		</svelte:fragment>
 	</DrawerContent>
 </Drawer>
+
+<AppReportsDrawer bind:open={appReportingDrawerOpen} {appPath} />
 
 <div
 	class="border-b flex flex-row justify-between py-1 gap-2 gap-y-2 px-2 items-center overflow-y-visible overflow-x-auto"

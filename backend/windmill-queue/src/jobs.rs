@@ -55,7 +55,7 @@ use windmill_common::{
     oauth2::WORKSPACE_SLACK_BOT_TOKEN_PATH,
     schedule::Schedule,
     scripts::{ScriptHash, ScriptLang},
-    users::SUPERADMIN_SECRET_EMAIL,
+    users::{SUPERADMIN_NOTIFICATION_EMAIL, SUPERADMIN_SECRET_EMAIL},
     worker::{to_raw_value, WORKER_CONFIG},
     DB, METRICS_ENABLED,
 };
@@ -1457,7 +1457,13 @@ async fn pull_single_job_and_mark_as_running_no_concurrency_limit<
             , last_ping = now()
             , suspend_until = null
             WHERE id = $1
-            RETURNING *",
+            RETURNING  id,  workspace_id,  parent_job,  created_by,  created_at,  started_at,  scheduled_for,
+                running,  script_hash,  script_path,  args,   right(logs, 20000000) as logs,  raw_code,  canceled,  canceled_by,  
+                canceled_reason,  last_ping,  job_kind,  env_id,  schedule_path,  permissioned_as, 
+                flow_status,  raw_flow,  is_flow_step,  language,  suspend,  suspend_until,  
+                same_worker,  raw_lock,  pre_run_error,  email,  visible_to_owner,  mem_peak, 
+                 root_job,  leaf_jobs,  tag,  concurrent_limit,  concurrency_time_window_s,  
+                 timeout,  flow_step_id,  cache_ttl, priority",
             )
             .bind(uuid)
             .fetch_optional(db)
@@ -1508,7 +1514,13 @@ async fn pull_single_job_and_mark_as_running_no_concurrency_limit<
                 FOR UPDATE SKIP LOCKED
                 LIMIT 1
             )
-            RETURNING *")
+            RETURNING  id,  workspace_id,  parent_job,  created_by,  created_at,  started_at,  scheduled_for,
+            running,  script_hash,  script_path,  args,   right(logs, 20000000) as logs,  raw_code,  canceled,  canceled_by,  
+            canceled_reason,  last_ping,  job_kind,  env_id,  schedule_path,  permissioned_as, 
+            flow_status,  raw_flow,  is_flow_step,  language,  suspend,  suspend_until,  
+            same_worker,  raw_lock,  pre_run_error,  email,  visible_to_owner,  mem_peak, 
+             root_job,  leaf_jobs,  tag,  concurrent_limit,  concurrency_time_window_s,  
+             timeout,  flow_step_id,  cache_ttl, priority")
                 .bind(tags)
                 .fetch_optional(db)
                 .await?
@@ -1540,7 +1552,13 @@ async fn pull_single_job_and_mark_as_running_no_concurrency_limit<
                         FOR UPDATE SKIP LOCKED
                         LIMIT 1
                     )
-                    RETURNING *",
+                    RETURNING  id,  workspace_id,  parent_job,  created_by,  created_at,  started_at,  scheduled_for,
+                    running,  script_hash,  script_path,  args,   right(logs, 20000000) as logs,  raw_code,  canceled,  canceled_by,  
+                    canceled_reason,  last_ping,  job_kind,  env_id,  schedule_path,  permissioned_as, 
+                    flow_status,  raw_flow,  is_flow_step,  language,  suspend,  suspend_until,  
+                    same_worker,  raw_lock,  pre_run_error,  email,  visible_to_owner,  mem_peak, 
+                     root_job,  leaf_jobs,  tag,  concurrent_limit,  concurrency_time_window_s,  
+                     timeout,  flow_step_id,  cache_ttl, priority",
                 )
                 .bind(priority_tags.tags.clone())
                 .fetch_optional(db)
@@ -2095,8 +2113,8 @@ pub async fn push<'c, T: Serialize + Send + Sync, R: rsmq_async::RsmqConnection 
     job_payload: JobPayload,
     args: T,
     user: &str,
-    email: &str,
-    permissioned_as: String,
+    mut email: &str,
+    mut permissioned_as: String,
     scheduled_for_o: Option<chrono::DateTime<chrono::Utc>>,
     schedule_path: Option<String>,
     parent_job: Option<Uuid>,
@@ -2249,6 +2267,10 @@ pub async fn push<'c, T: Serialize + Send + Sync, R: rsmq_async::RsmqConnection 
             priority,
         ),
         JobPayload::ScriptHub { path } => {
+            if path == "hub/7771/slack" {
+                permissioned_as = SUPERADMIN_NOTIFICATION_EMAIL.to_string();
+                email = SUPERADMIN_NOTIFICATION_EMAIL;
+            }
             (
                 None,
                 Some(path),

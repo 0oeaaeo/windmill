@@ -183,7 +183,7 @@ declare async function goto(path: string, newTab?: boolean): Promise<void>;
  * @param id component's id
  * @param index index of the tab to set
 */
-declare function setTab(id: string, index: string): void;
+declare function setTab(id: string, index: number): void;
 
 /** recompute a component's runnable or background runnable
  * @param id component's id
@@ -247,7 +247,7 @@ declare const state: ${JSON.stringify(state)};
 declare const iter: {index: number, value: any};
 
 /** The row within the context of a table */
-declare const row: Record<string, any>;
+declare const row: {index: number, value: Record<string, any>, disabled: boolean};
 
 /** The group fields within the context of a container's group */
 declare const group: Record<string, any>;
@@ -271,6 +271,16 @@ export function getAllScriptNames(app: App): string[] {
 				if (actionButton.componentInput?.type === 'runnable') {
 					if (actionButton.componentInput.runnable?.type === 'runnableByName') {
 						acc.push(actionButton.componentInput.runnable.name)
+					}
+				}
+			})
+		}
+
+		if (gridItem.data.type === 'menucomponent') {
+			gridItem.data.menuItems.forEach((menuItem) => {
+				if (menuItem.componentInput?.type === 'runnable') {
+					if (menuItem.componentInput.runnable?.type === 'runnableByName') {
+						acc.push(menuItem.componentInput.runnable.name)
 					}
 				}
 			})
@@ -363,5 +373,22 @@ export function transformBareBase64IfNecessary(source: string | undefined) {
 		return source
 	} else {
 		return `data:application/octet-stream;base64,${source}`
+	}
+}
+
+export function getImageDataURL(imageKind: string | undefined, image: string | undefined) {
+	if (!imageKind || !image) {
+		return null
+	}
+
+	switch (imageKind) {
+		case 'png encoded as base64':
+			return 'data:image/png;base64,' + image
+		case 'jpeg encoded as base64':
+			return 'data:image/jpeg;base64,' + image
+		case 'svg encoded as base64':
+			return 'data:image/svg+xml;base64,' + image
+		default:
+			return image
 	}
 }

@@ -796,14 +796,14 @@ const config = {
 						backgroundColor: lightTheme.border + ' !important',
 						margin: '0 !important',
 						transform: 'none !important',
-						zIndex: '1001 !important',
 						transition: 'opacity 200ms !important',
 						opacity: '0',
 						'--splitter-hover-size': '5px',
 						'--splitter-hover-adjustment': '-2px'
 					},
 					'&:hover::after': {
-						opacity: '1'
+						opacity: '1',
+						zIndex: '1001 !important'
 					}
 				},
 				'.dark .splitpanes__splitter': {

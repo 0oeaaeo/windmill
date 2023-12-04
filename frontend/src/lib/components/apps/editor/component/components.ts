@@ -41,7 +41,8 @@ import {
 	PanelTopInactive,
 	ListIcon,
 	Heading1,
-	FileBarChart
+	FileBarChart,
+	Menu
 } from 'lucide-svelte'
 import type {
 	Aligned,
@@ -164,6 +165,9 @@ export type SelectStepComponent = BaseComponent<'selectstepcomponent'>
 
 export type CarouselListComponent = BaseComponent<'carousellistcomponent'>
 export type StatisticCardComponent = BaseComponent<'statcomponent'>
+export type MenuComponent = BaseComponent<'menucomponent'> & {
+	menuItems: (BaseAppComponent & ButtonComponent & GridItem)[]
+}
 
 export type TypedComponent =
 	| DisplayComponent
@@ -226,6 +230,7 @@ export type TypedComponent =
 	| PlotlyComponentV2
 	| ChartJsComponentV2
 	| StatisticCardComponent
+	| MenuComponent
 
 export type AppComponent = BaseAppComponent & TypedComponent
 
@@ -242,10 +247,12 @@ export function getRecommendedDimensionsByComponent(
 	return { w: +size[0], h: +size[1] }
 }
 
+export type Quickstyle = { quickCss?: string[]; quickTailwindClasses?: string[] }
 export type AppComponentConfig<T extends TypedComponent['type']> = {
 	name: string
 	icon: any
 	documentationLink: string
+	quickstyle?: Record<string, Quickstyle>
 	/**
 	 * Dimensions key formula:
 	 * [**mobile width**]:[**mobile height**]-[**desktop width**]:[**desktop height**]
@@ -275,6 +282,7 @@ export interface InitialAppComponent extends Partial<Aligned> {
 	numberOfSubgrids?: number
 	recomputeIds?: boolean
 	actionButtons?: boolean
+	menuItems?: boolean
 	tabs?: string[]
 	panes?: number[]
 	conditions?: AppInputSpec<'boolean', boolean>[]
@@ -1602,6 +1610,16 @@ This is a paragraph.
 					type: 'static',
 					value: false,
 					fieldType: 'boolean'
+				},
+				beforeIcon: {
+					type: 'static',
+					value: undefined,
+					fieldType: 'icon-select'
+				},
+				afterIcon: {
+					type: 'static',
+					value: undefined,
+					fieldType: 'icon-select'
 				}
 			}
 		}
@@ -2004,6 +2022,16 @@ This is a paragraph.
 					type: 'static',
 					value: false,
 					fieldType: 'boolean'
+				},
+				beforeIcon: {
+					type: 'static',
+					value: undefined,
+					fieldType: 'icon-select'
+				},
+				afterIcon: {
+					type: 'static',
+					value: undefined,
+					fieldType: 'icon-select'
 				}
 			}
 		}
@@ -2034,6 +2062,16 @@ This is a paragraph.
 					type: 'static',
 					value: false,
 					fieldType: 'boolean'
+				},
+				beforeIcon: {
+					type: 'static',
+					value: undefined,
+					fieldType: 'icon-select'
+				},
+				afterIcon: {
+					type: 'static',
+					value: undefined,
+					fieldType: 'icon-select'
 				}
 			}
 		}
@@ -2721,7 +2759,28 @@ This is a paragraph.
 		icon: FileBarChart,
 		documentationLink: `${documentationBaseUrl}/statistic_card`,
 		dims: '2:4-3:4' as AppComponentDimensions,
-		customCss: {},
+		quickstyle: {
+			title: {
+				quickCss: ['font-size: 1rem', 'font-size: 1.5rem', 'font-size: 2rem'],
+				quickTailwindClasses: ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl']
+			},
+			value: {
+				quickCss: ['font-size: 1rem', 'font-size: 1.5rem', 'font-size: 2rem'],
+				quickTailwindClasses: ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl']
+			}
+		} as Record<string, Quickstyle>,
+		customCss: {
+			title: {
+				class: '',
+				style: ''
+			},
+			container: { class: '', style: '' },
+			value: {
+				class: '',
+				style: ''
+			},
+			media: { class: '', style: '' }
+		},
 		initialData: {
 			configuration: {
 				title: {
@@ -2739,12 +2798,91 @@ This is a paragraph.
 					value: 0,
 					fieldType: 'number'
 				},
-				icon: {
+				media: {
+					type: 'oneOf',
+					selected: 'image',
+					labels: {
+						icon: 'Icon',
+						image: 'Image'
+					},
+					configuration: {
+						icon: {
+							icon: {
+								type: 'static',
+								value: undefined,
+								fieldType: 'icon-select'
+							}
+						},
+						image: {
+							source: {
+								type: 'static',
+								value: '/logo.svg',
+								fieldType: 'text',
+								fileUpload: {
+									accept: 'image/*',
+									convertTo: 'base64'
+								}
+							},
+							sourceKind: {
+								fieldType: 'select',
+								type: 'static',
+								selectOptions: selectOptions.imageSourceKind,
+								value: 'url' as (typeof selectOptions.imageSourceKind)[number]
+							}
+						}
+					}
+				} as const
+			}
+		}
+	},
+	menucomponent: {
+		name: 'Dropdown Menu',
+		icon: Menu,
+		documentationLink: `${documentationBaseUrl}/dropdown_menu`,
+		dims: '1:1-1:2' as AppComponentDimensions,
+		customCss: {
+			button: { style: '', class: '' }
+		},
+		initialData: {
+			...defaultAlignement,
+			componentInput: undefined,
+			configuration: {
+				label: {
+					type: 'static',
+					fieldType: 'text',
+					value: '' as string
+				},
+				color: {
+					fieldType: 'select',
+					type: 'static',
+					selectOptions: selectOptions.buttonColorOptions,
+					value: 'light'
+				},
+				size: {
+					fieldType: 'select',
+					type: 'static',
+
+					selectOptions: selectOptions.buttonSizeOptions,
+					value: 'xs'
+				},
+				fillContainer: {
+					fieldType: 'boolean',
+					type: 'static',
+
+					value: false
+				},
+				beforeIcon: {
+					type: 'static',
+					value: 'Menu',
+					fieldType: 'icon-select'
+				},
+				afterIcon: {
 					type: 'static',
 					value: undefined,
 					fieldType: 'icon-select'
 				}
-			}
+			},
+			menuItems: true
 		}
 	}
 } as const

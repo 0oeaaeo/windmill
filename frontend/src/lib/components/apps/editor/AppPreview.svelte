@@ -77,6 +77,7 @@
 		app: appStore,
 		summary: writable(summary),
 		selectedComponent,
+		bgRuns: writable([]),
 		mode,
 		connectingInput,
 		breakpoint,
@@ -170,6 +171,7 @@
 		class="{$$props.class} {lockedClasses} {width} h-full bg-surface {app.fullscreen
 			? ''
 			: 'max-w-7xl'} mx-auto"
+		id="app-content"
 	>
 		{#if $appStore.grid}
 			<div

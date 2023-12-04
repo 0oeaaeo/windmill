@@ -23,7 +23,10 @@
 	import ShareModal from '$lib/components/ShareModal.svelte'
 	import SimpleEditor from '$lib/components/SimpleEditor.svelte'
 	import SupabaseConnect from '$lib/components/SupabaseConnect.svelte'
-	import TableCustom from '$lib/components/TableCustom.svelte'
+	import Cell from '$lib/components/table/Cell.svelte'
+	import DataTable from '$lib/components/table/DataTable.svelte'
+	import Head from '$lib/components/table/Head.svelte'
+	import Row from '$lib/components/table/Row.svelte'
 	import Toggle from '$lib/components/Toggle.svelte'
 	import Tooltip from '$lib/components/Tooltip.svelte'
 	import type { ResourceType } from '$lib/gen'
@@ -103,18 +106,21 @@
 
 	let typeFilter: string | undefined = undefined
 
+	$: currentResources =
+		tab == 'cache' ? cacheResources : tab == 'states' ? stateResources : resources
+
 	$: preFilteredItemsOwners =
 		ownerFilter == undefined
-			? resources
-			: resources?.filter((x) => x.path.startsWith(ownerFilter ?? ''))
+			? currentResources
+			: currentResources?.filter((x) => x.path.startsWith(ownerFilter ?? ''))
 
 	$: preFilteredType =
 		typeFilter == undefined
-			? preFilteredItemsOwners?.filter((x) =>
-					tab === 'workspace'
+			? preFilteredItemsOwners?.filter((x) => {
+					return tab === 'workspace'
 						? x.resource_type !== 'app_theme' &&
-						  x.resource_type !== 'state' &&
-						  x.resource_type !== 'cache'
+								x.resource_type !== 'state' &&
+								x.resource_type !== 'cache'
 						: tab === 'states'
 						? x.resource_type === 'state'
 						: tab === 'cache'
@@ -122,16 +128,18 @@
 						: tab === 'theme'
 						? x.resource_type === 'app_theme'
 						: true
-			  )
-			: preFilteredItemsOwners?.filter(
-					(x) =>
+			  })
+			: preFilteredItemsOwners?.filter((x) => {
+					console.log(x.resource_type)
+					return (
 						x.resource_type === typeFilter &&
 						(tab === 'workspace'
 							? x.resource_type !== 'app_theme' &&
 							  x.resource_type !== 'state' &&
 							  x.resource_type !== 'cache'
 							: true)
-			  )
+					)
+			  })
 
 	async function loadResources(): Promise<void> {
 		resources = await loadResourceInternal(undefined, 'cache,state')
@@ -574,40 +582,47 @@
 			<div class="h-4" />
 		{/if}
 
-		<div class="overflow-x-auto pb-40">
+		<div class="overflow-x-auto pb-40 mt-4">
 			{#if loading.resources}
 				<Skeleton layout={[0.5, [2], 1]} />
 				{#each new Array(6) as _}
 					<Skeleton layout={[[4], 0.7]} />
 				{/each}
+			{:else if filteredItems?.length == 0}
+				<div class="flex flex-col items-center justify-center h-full">
+					<div class="text-md font-medium">No resources found</div>
+					<div class="text-sm text-secondary">
+						Try changing the filters or creating a new resource
+					</div>
+				</div>
 			{:else}
-				<TableCustom>
-					<tr slot="header-row">
-						<th />
-						<th>path</th>
-						<th>resource type</th>
-						<th>description</th>
-						<th />
-						<th />
-					</tr>
-					<tbody slot="body">
-						{@const items =
-							tab == 'cache' ? cacheResources : tab == 'states' ? stateResources : filteredItems}
-						{#if items}
-							{#each items as { path, description, resource_type, extra_perms, canWrite, is_oauth, is_linked, account, refresh_error, is_expired, marked, is_refreshed }}
-								<tr>
-									<td class="!px-0 text-center">
+				<DataTable>
+					<Head>
+						<Row>
+							<Cell head first />
+							<Cell head>Path</Cell>
+							<Cell head>Resource type</Cell>
+							<Cell head>Description</Cell>
+							<Cell head />
+							<Cell head last />
+						</Row>
+					</Head>
+					<tbody class="divide-y bg-surface">
+						{#if filteredItems}
+							{#each filteredItems as { path, description, resource_type, extra_perms, canWrite, is_oauth, is_linked, account, refresh_error, is_expired, marked, is_refreshed }}
+								<Row>
+									<Cell first>
 										<SharedBadge {canWrite} extraPerms={extra_perms} />
-									</td>
-									<td>
+									</Cell>
+									<Cell>
 										<a
 											class="break-all"
 											href="#{path}"
 											on:click={() => resourceEditor?.initEdit?.(path)}
 											>{#if marked}{@html marked}{:else}{path}{/if}</a
 										>
-									</td>
-									<td class="px-2">
+									</Cell>
+									<Cell>
 										<a
 											href="#{name}"
 											on:click={() => {
@@ -629,14 +644,14 @@
 										>
 											<IconedResourceType name={resource_type} after={true} />
 										</a>
-									</td>
-									<td>
+									</Cell>
+									<Cell>
 										<span class="text-tertiary text-xs">
 											{removeMarkdown(truncate(description ?? '', 30))}
 										</span>
-									</td>
-									<td class="text-center">
-										<div class="flex flex-row">
+									</Cell>
+									<Cell>
+										<div class="flex flex-row text-center">
 											<div class="w-10">
 												{#if is_linked}
 													<Popover>
@@ -700,8 +715,8 @@
 												</div>
 											{/if}
 										</div>
-									</td>
-									<td>
+									</Cell>
+									<Cell>
 										<Dropdown
 											items={[
 												{
@@ -764,16 +779,12 @@
 													: [])
 											]}
 										/>
-									</td>
-								</tr>
+									</Cell>
+								</Row>
 							{/each}
-						{:else if resources}
-							<tr> No resources to display</tr>
-						{:else}
-							<tr>Loading...</tr>
 						{/if}
 					</tbody>
-				</TableCustom>
+				</DataTable>
 			{/if}
 		</div>
 	{:else if tab == 'types'}
@@ -783,18 +794,20 @@
 				<Skeleton layout={[[4], 0.7]} />
 			{/each}
 		{:else}
-			<div class="overflow-auto">
-				<TableCustom>
-					<tr slot="header-row">
-						<th>name</th>
-						<th>description</th>
-						<th />
-					</tr>
-					<tbody slot="body">
+			<div class="overflow-auto mt-4">
+				<DataTable>
+					<Head>
+						<Row>
+							<Cell head first>Name</Cell>
+							<Cell head>Description</Cell>
+							<Cell head last />
+						</Row>
+					</Head>
+					<tbody class="divide-y bg-surface">
 						{#if resourceTypes}
 							{#each resourceTypes as { name, description, schema, canWrite }}
-								<tr>
-									<td>
+								<Row>
+									<Cell first>
 										<a
 											href="#{name}"
 											on:click={() => {
@@ -809,13 +822,13 @@
 										>
 											<IconedResourceType after={true} {name} />
 										</a>
-									</td>
-									<td>
-										<span class="text-tertiary text-xs">
+									</Cell>
+									<Cell>
+										<span class="text-tertiary text-xs w-96 flex flex-wrap whitespace-pre-wrap">
 											{removeMarkdown(truncate(description ?? '', 200))}
 										</span>
-									</td>
-									<td>
+									</Cell>
+									<Cell last>
 										{#if !canWrite}
 											<Badge>
 												Shared globally
@@ -827,18 +840,18 @@
 										{:else if $userStore?.is_admin || $userStore?.is_super_admin}
 											<div class="flex flex-row-reverse gap-2">
 												<Button
-													size="sm"
+													size="xs"
 													color="red"
 													variant="border"
+													btnClasses="border-0"
 													startIcon={{ icon: Trash }}
 													on:click={() => handleDeleteResourceType(name)}
 												>
 													Delete
 												</Button>
 												<Button
-													size="sm"
-													variant="border"
-													color="dark"
+													size="xs"
+													color="light"
 													startIcon={{ icon: Pen }}
 													on:click={() => startEditResourceType(name)}
 												>
@@ -854,16 +867,12 @@
 												</Tooltip>
 											</Badge>
 										{/if}
-									</td>
-								</tr>
+									</Cell>
+								</Row>
 							{/each}
-						{:else if resources}
-							<tr> No resources types to display</tr>
-						{:else}
-							<tr>Loading...</tr>
 						{/if}
 					</tbody>
-				</TableCustom>
+				</DataTable>
 			</div>
 		{/if}
 	{/if}
